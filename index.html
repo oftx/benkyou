@@ -6,100 +6,139 @@
     <title>日语声调学习</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-interaction-hint="show">
 
-    <!-- 主菜单 -->
-    <div id="main-menu" class="active">
+    <div id="main-menu" class="view active">
         <h1>日语入门学习</h1>
-        <p>模块一</p>
-        <button id="start-learning-btn">根据发音选择正确的音调核</button>
+        <button id="start-learning-btn">模块一：声调辨认</button>
+        
+        <div id="word-list-display">
+            <span id="word-list-names"></span>
+            <button id="edit-word-lists-btn" class="text-btn">编辑</button>
+        </div>
     </div>
 
-    <!-- 学习模块 -->
-    <div id="learning-module">
-        <header>
-            <button id="settings-btn">设置</button>
-            <button id="word-list-btn">单词列表</button>
+    <div id="learning-module" class="view">
+        <header class="app-header">
+            <!-- 新增：返回主菜单按钮 -->
+            <div class="header-left">
+                <button id="back-to-main-menu-btn" class="icon-btn" aria-label="返回主菜单">↩️</button>
+                <button id="settings-btn" class="icon-btn" aria-label="打开设置">⚙️</button>
+            </div>
+            <div class="progress-indicator">
+                <span id="current-word-index">1</span> / <span id="total-word-count"></span>
+            </div>
+            <button id="drawer-btn" class="icon-btn" aria-label="打开单词列表">☰</button>
         </header>
 
-        <main>
+        <main class="content-area">
             <div id="word-display-container"></div>
-            <div id="word-info-container"></div>
-            <button id="play-audio-btn">播放音频 (R)</button>
-            <p id="pitch-hint"></p>
-            <div id="pitch-options-container"></div>
-            <div id="navigation-container">
-                <button id="prev-word-btn">◀️ 上一个</button>
-                <button id="next-word-btn">下一个 ▶️ (Enter)</button>
+            <div class="audio-controls">
+                <button id="play-audio-btn" aria-label="播放读音">🔊</button>
+                <audio id="audio-player"></audio>
+                <span class="keyboard-hint hint-nav">(R)</span>
             </div>
+            <div id="word-info-container"></div>
+            <div id="pitch-explanation" class="explanation-text"></div>
+            <div id="pitch-options-container"></div>
         </main>
+
+        <footer class="navigation-controls">
+            <button id="prev-button">◀️ 上一个</button>
+            <button id="next-button">下一个 ▶️</button>
+            <span class="keyboard-hint hint-nav">(◀ / ▶)</span>
+        </footer>
     </div>
 
-    <!-- 设置面板 -->
-    <div id="settings-panel" class="panel">
+    <!-- 单词列表抽屉 -->
+    <aside id="drawer" class="slide-panel">
         <div class="panel-header">
-            <h2>设置</h2>
-            <button class="close-panel-btn">✕</button>
+            <h3>单词列表</h3>
+            <button id="close-drawer-btn" class="icon-btn" aria-label="关闭单词列表">✖</button>
         </div>
         <div class="panel-content">
+            <ul id="word-list"></ul>
+        </div>
+    </aside>
+
+    <!-- 设置面板 -->
+    <aside id="settings-modal" class="slide-panel">
+        <div class="panel-header">
+            <h3>设置</h3>
+            <button id="close-settings-btn" class="icon-btn" aria-label="关闭设置">✖</button>
+        </div>
+        <div class="settings-content panel-content">
+             <div class="setting-item checkbox-item">
+                <input type="checkbox" id="theme-toggle">
+                <label for="theme-toggle">深色模式</label>
+            </div>
             <div class="setting-item">
-                <label for="sort-type">排序方式</label>
-                <select id="sort-type">
+                <label for="interaction-hint-select">交互提示:</label>
+                <select id="interaction-hint-select">
+                    <option value="show">显示所有</option>
+                    <option value="partial">隐藏部分</option>
+                    <option value="hide">隐藏所有</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label for="sort-by-select">排序方式:</label>
+                <select id="sort-by-select">
                     <option value="default">默认顺序</option>
                     <option value="length">单词长度</option>
                 </select>
             </div>
             <div class="setting-item">
-                <label for="sort-order">顺序</label>
-                <select id="sort-order">
+                <label for="order-select">顺序:</label>
+                <select id="order-select">
                     <option value="asc">升序</option>
                     <option value="desc">降序</option>
                     <option value="random">乱序</option>
                 </select>
             </div>
-             <div class="setting-item">
-                <label for="key-shortcut">键盘快捷键</label>
-                <select id="key-shortcut">
+            <div class="setting-item">
+                <label for="key-shortcut-select">键盘快捷键:</label>
+                <select id="key-shortcut-select">
                     <option value="qwerty">键盘顺序 (QWERTY)</option>
-                    <option value="alphabet">字母表顺序 (ABC)</option>
-                    <option value="numeric">数字 (123)</option>
+                    <option value="abcdef">字母表顺序 (ABCDEF)</option>
+                    <option value="numeric">数字 (12345)</option>
                 </select>
             </div>
-            <div class="setting-item">
-                <label><input type="checkbox" id="show-info-toggle"> 显示单词信息</label>
+            <div class="setting-item checkbox-item">
+                <input type="checkbox" id="show-info-toggle">
+                <label for="show-info-toggle">显示单词信息</label>
+            </div>
+            <div class="setting-item checkbox-item">
+                <input type="checkbox" id="autoplay-toggle">
+                <label for="autoplay-toggle">自动播放读音</label>
+            </div>
+             <div class="setting-item checkbox-item">
+                <input type="checkbox" id="study-mode-toggle">
+                <label for="study-mode-toggle">学习模式 (直接显示答案)</label>
             </div>
             <div class="setting-item">
-                <label><input type="checkbox" id="autoplay-toggle"> 自动播放读音</label>
-            </div>
-            <div class="setting-item">
-                <label><input type="checkbox" id="learning-mode-toggle"> 学习模式 (直接显示答案)</label>
-            </div>
-             <div class="setting-item">
-                <label for="jump-to-word">跳转到单词序号</label>
-                <div class="jump-container">
-                    <input type="number" id="jump-to-word" min="1">
-                    <button id="jump-btn">跳转</button>
+                <label for="jump-to-input">跳转到序号:</label>
+                <div class="jump-control">
+                    <input type="number" id="jump-to-input" min="1">
+                    <button id="jump-to-btn">跳转</button>
                 </div>
             </div>
         </div>
-    </div>
+    </aside>
 
-    <!-- 单词列表面板 -->
-    <div id="word-list-panel" class="panel">
+    <!-- 单词表选择面板 -->
+    <aside id="word-list-selection-panel" class="slide-panel">
         <div class="panel-header">
-            <h2>单词列表</h2>
-            <button class="close-panel-btn">✕</button>
+            <h3>选择单词表</h3>
+            <button id="close-word-list-selection-btn" class="icon-btn" aria-label="确认并关闭">✔</button>
         </div>
-        <div class="panel-content" id="word-list-content">
-            <!-- 单词列表将动态生成在这里 -->
+        <div class="panel-content">
+            <ul id="word-list-choices"></ul>
         </div>
-    </div>
-
-    <audio id="audio-player"></audio>
+    </aside>
     
-    <!-- 引入数据和逻辑脚本 -->
+    <div id="overlay"></div>
+
     <script src="data.js"></script>
     <script src="app.js"></script>
-
 </body>
 </html>

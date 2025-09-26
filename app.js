@@ -1,400 +1,383 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- DOM 元素获取 ---
-    const mainMenu = document.getElementById('main-menu');
-    const learningModule = document.getElementById('learning-module');
-    const startBtn = document.getElementById('start-learning-btn');
+    let learnableWords = [], sessionWords = [], currentIndex = 0, isReady = false;
+    let selectedWordListIndices = [];
 
-    const wordDisplayContainer = document.getElementById('word-display-container');
-    const wordInfoContainer = document.getElementById('word-info-container');
-    const playAudioBtn = document.getElementById('play-audio-btn');
-    const pitchHint = document.getElementById('pitch-hint');
-    const pitchOptionsContainer = document.getElementById('pitch-options-container');
-    const prevWordBtn = document.getElementById('prev-word-btn');
-    const nextWordBtn = document.getElementById('next-word-btn');
-    const audioPlayer = document.getElementById('audio-player');
-
-    const settingsBtn = document.getElementById('settings-btn');
-    const wordListBtn = document.getElementById('word-list-btn');
-    const settingsPanel = document.getElementById('settings-panel');
-    const wordListPanel = document.getElementById('word-list-panel');
-    const closePanelBtns = document.querySelectorAll('.close-panel-btn');
-
-    // --- 设置项 ---
-    const sortTypeSelect = document.getElementById('sort-type');
-    const sortOrderSelect = document.getElementById('sort-order');
-    const keyShortcutSelect = document.getElementById('key-shortcut');
-    const showInfoToggle = document.getElementById('show-info-toggle');
-    const autoplayToggle = document.getElementById('autoplay-toggle');
-    const learningModeToggle = document.getElementById('learning-mode-toggle');
-    const jumpToWordInput = document.getElementById('jump-to-word');
-    const jumpBtn = document.getElementById('jump-btn');
-    const wordListContent = document.getElementById('word-list-content');
-
-    // --- 状态变量 ---
-    let learnableWords = [];
-    let sessionWords = [];
-    let currentWordIndex = 0;
-    let userSettings = {};
-
-    const defaultSettings = {
-        sortType: 'default',
-        sortOrder: 'asc',
-        keyShortcut: 'qwerty',
-        showInfo: true,
-        autoplay: true,
-        learningMode: false,
-        lastWordIndex: 0,
-    };
-    
-    const keyMappings = {
+    const keyMaps = {
         qwerty: 'qwertyuiop'.split(''),
-        alphabet: 'abcdefghij'.split(''),
+        abcdef: 'abcdefghijklmnopqrstuvwxyz'.split(''),
         numeric: '1234567890'.split(''),
     };
+    const defaultSettings = {
+        theme: 'light',
+        interactionHint: 'show',
+        sortBy: 'default',
+        order: 'asc',
+        showInfo: true,
+        keyShortcut: 'qwerty',
+        autoPlay: true,
+        studyMode: false,
+    };
+    let settings = {};
 
-    // --- 初始化 ---
-    function init() {
-        if (!processData()) return; // 如果数据处理失败，则停止初始化
-        loadSettings();
-        updateSessionWords();
-        renderWord(currentWordIndex);
-        bindEvents();
-    }
+    const dom = {
+        body: document.body,
+        mainMenu: document.getElementById('main-menu'),
+        learningModule: document.getElementById('learning-module'),
+        startBtn: document.getElementById('start-learning-btn'),
+        wordDisplay: document.getElementById('word-display-container'),
+        wordInfo: document.getElementById('word-info-container'),
+        pitchOptions: document.getElementById('pitch-options-container'),
+        pitchExplanation: document.getElementById('pitch-explanation'),
+        audioPlayer: document.getElementById('audio-player'),
+        playAudioBtn: document.getElementById('play-audio-btn'),
+        prevBtn: document.getElementById('prev-button'),
+        nextBtn: document.getElementById('next-button'),
+        currentIndexDisplay: document.getElementById('current-word-index'),
+        totalCountDisplay: document.getElementById('total-word-count'),
+        navigationControls: document.querySelector('.navigation-controls'),
+        drawer: document.getElementById('drawer'),
+        drawerBtn: document.getElementById('drawer-btn'),
+        closeDrawerBtn: document.getElementById('close-drawer-btn'),
+        wordList: document.getElementById('word-list'),
+        settingsModal: document.getElementById('settings-modal'),
+        settingsBtn: document.getElementById('settings-btn'),
+        closeSettingsBtn: document.getElementById('close-settings-btn'),
+        themeToggle: document.getElementById('theme-toggle'),
+        interactionHintSelect: document.getElementById('interaction-hint-select'),
+        sortBySelect: document.getElementById('sort-by-select'),
+        orderSelect: document.getElementById('order-select'),
+        keyShortcutSelect: document.getElementById('key-shortcut-select'),
+        showInfoToggle: document.getElementById('show-info-toggle'),
+        autoplayToggle: document.getElementById('autoplay-toggle'),
+        studyModeToggle: document.getElementById('study-mode-toggle'),
+        jumpToInput: document.getElementById('jump-to-input'),
+        jumpToBtn: document.getElementById('jump-to-btn'),
+        overlay: document.getElementById('overlay'),
+        wordListDisplay: document.getElementById('word-list-display'),
+        wordListNames: document.getElementById('word-list-names'),
+        editWordListsBtn: document.getElementById('edit-word-lists-btn'),
+        wordListSelectionPanel: document.getElementById('word-list-selection-panel'),
+        wordListChoices: document.getElementById('word-list-choices'),
+        closeWordListSelectionBtn: document.getElementById('close-word-list-selection-btn'),
+        // 新增：返回按钮的引用
+        backToMainMenuBtn: document.getElementById('back-to-main-menu-btn'),
+    };
 
-    // --- 数据处理 ---
-    function processData() {
-        // 【错误修复】: 增加一个检查，确保 `data` 变量已从 data.js 加载
-        if (typeof data === 'undefined' || !Array.isArray(data)) {
-            console.error("错误: 'data' 变量未加载或不是一个数组。请确保 data.js 在 app.js 之前被正确加载。");
-            alert("错误：单词数据未能成功加载。请检查您的 data.js 文件是否与 index.html 在同一目录下，然后刷新页面。");
-            return false; // 返回 false 表示处理失败
+    const parseWordToRuby = (wordString) => {
+        const regex = /([^\s\[]+)\[(.+?)\]|([^\s\[]+)/g;
+        let html = '';
+        let match;
+        while ((match = regex.exec(wordString)) !== null) {
+            if (match[1] && match[2]) html += `<ruby>${match[1]}<rt>${match[2]}</rt></ruby>`;
+            else if (match[3]) html += `<span>${match[3]}</span>`;
         }
+        return html;
+    };
+    const getKana = (wordString) => {
+        let result = wordString.replace(/([^\s\[]+)\[(.+?)\]/g, '$2');
+        result = result.replace(/[^ぁ-んァ-ヶー]/g, '');
+        return result;
+    };
+    const countMora = (kana) => kana.replace(/[ゃゅょぁぃぅぇぉっャュョァィゥェォッ]/g, '').length;
+    const applyHintSetting = (hintValue) => dom.body.dataset.interactionHint = hintValue;
+    const replayAudio = () => {
+        dom.audioPlayer.currentTime = 0;
+        dom.audioPlayer.play().catch(e => console.log("Audio replay failed:", e));
+    };
 
-        const smallKana = 'ゃゅょっぁぃぅぇぉ';
-        // 使用 `data` 而不是 `window.data`
-        learnableWords = data
-            .map((item, index) => ({
-                originalIndex: index,
-                japanese: item[0],
-                pitch: item[1],
-                wordType: item[2],
-                baseForm: item[3],
-                foreign: item[4],
-                chinese: item[5],
-                audio: item[6],
-            }))
-            .filter(word => word.pitch && word.pitch.trim() !== "") // 排除无音调数据
-            .map(word => {
-                const kana = getKana(word.japanese);
-                let moraCount = 0;
-                // 修正拗音/促音的计算逻辑
-                for (let i = 0; i < kana.length; i++) {
-                    if (i + 1 < kana.length && smallKana.includes(kana[i+1])) {
-                        // 当前假名和下一个小假名一起算一个音拍
-                        moraCount++;
-                        i++; 
-                    } else if(kana[i] === 'ー') {
-                        // 长音算一拍
-                        moraCount++;
-                    } else if(!smallKana.includes(kana[i])) {
-                        // 正常假名算一拍
-                         moraCount++;
-                    }
-                }
-                word.kana = kana;
-                word.moraCount = moraCount > 10 ? 10 : moraCount; // 将拍数限制在10以内
-                return word;
-            });
-        return true; // 返回 true 表示处理成功
-    }
-    
-    function getKana(japaneseStr) {
-        const matches = japaneseStr.match(/\[(.*?)\]/g);
-        if (!matches) return japaneseStr;
-        return matches.map(m => m.slice(1, -1)).join('');
-    }
-
-    // --- 设置管理 ---
-    function loadSettings() {
+    const loadSettings = () => {
         try {
-            const savedSettings = JSON.parse(localStorage.getItem('jpPitchSettings'));
-            userSettings = { ...defaultSettings, ...savedSettings };
-        } catch (e) {
-            userSettings = defaultSettings;
+            const saved = JSON.parse(localStorage.getItem('jpPitchSettings'));
+            settings = { ...defaultSettings, ...saved };
+        } catch (e) { settings = { ...defaultSettings }; }
+        if (!keyMaps[settings.keyShortcut]) settings.keyShortcut = defaultSettings.keyShortcut;
+        if (!['show', 'partial', 'hide'].includes(settings.interactionHint)) settings.interactionHint = defaultSettings.interactionHint;
+        dom.body.dataset.theme = settings.theme;
+        dom.themeToggle.checked = settings.theme === 'dark';
+        applyHintSetting(settings.interactionHint);
+        dom.interactionHintSelect.value = settings.interactionHint;
+        dom.sortBySelect.value = settings.sortBy;
+        dom.orderSelect.value = settings.order;
+        dom.keyShortcutSelect.value = settings.keyShortcut;
+        dom.showInfoToggle.checked = settings.showInfo;
+        dom.autoplayToggle.checked = settings.autoPlay;
+        dom.studyModeToggle.checked = settings.studyMode;
+    };
+    const saveSettings = () => localStorage.setItem('jpPitchSettings', JSON.stringify(settings));
+    const saveProgress = () => { if (sessionWords[currentIndex]) localStorage.setItem('jpPitchLastWordId', sessionWords[currentIndex].id); };
+
+    const loadWordListSelection = () => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('jpWordListSelection'));
+            if (Array.isArray(saved) && saved.length > 0 && saved.every(i => i >= 0 && i < data.length)) {
+                selectedWordListIndices = saved;
+            } else { selectedWordListIndices = [0]; }
+        } catch (e) { selectedWordListIndices = [0]; }
+    };
+    const saveWordListSelection = () => localStorage.setItem('jpWordListSelection', JSON.stringify(selectedWordListIndices));
+
+    const aggregateLearnableWords = () => {
+        const aggregated = selectedWordListIndices.flatMap(index => data[index]?.data || []);
+        learnableWords = aggregated.map((item, index) => ({
+            id: index, japanese: item[0], pitch: item[1].replace(/[^⓪①②③④⑤⑥⑦⑧⑨⑩]/g, ''),
+            pos: item[2], baseForm: item[3], gaikokugo: item[4], chinese: item[5], audio: item[6],
+            kana: getKana(item[0]), moraCount: countMora(getKana(item[0])),
+        })).filter(item => item.pitch && item.moraCount > 0);
+    };
+
+    const loadProgress = () => {
+        const lastId = parseInt(localStorage.getItem('jpPitchLastWordId'), 10);
+        if (!isNaN(lastId)) {
+            const index = sessionWords.findIndex(word => word.id === lastId);
+            return index > -1 ? index : 0;
         }
-        
-        sortTypeSelect.value = userSettings.sortType;
-        sortOrderSelect.value = userSettings.sortOrder;
-        keyShortcutSelect.value = userSettings.keyShortcut;
-        showInfoToggle.checked = userSettings.showInfo;
-        autoplayToggle.checked = userSettings.autoplay;
-        learningModeToggle.checked = userSettings.learningMode;
-        
-        const lastIndex = userSettings.lastWordIndex || 0;
-        currentWordIndex = lastIndex < sessionWords.length ? lastIndex : 0;
-    }
-
-    function saveSettings() {
-        userSettings.lastWordIndex = currentWordIndex;
-        localStorage.setItem('jpPitchSettings', JSON.stringify(userSettings));
-    }
-
-    function applySettingsChange() {
-        updateSessionWords();
-        currentWordIndex = 0; // 排序改变后从头开始
-        renderWord(currentWordIndex);
-        populateWordList();
-        saveSettings();
-    }
+        return 0;
+    };
     
-    // --- 会话单词列表管理 ---
-    function updateSessionWords() {
-        let words = [...learnableWords];
+    const generateSessionWords = () => {
+        let temp = [...learnableWords];
+        if (settings.sortBy === 'length') temp.sort((a, b) => a.moraCount - b.moraCount);
+        if (settings.order === 'desc') temp.reverse();
+        else if (settings.order === 'random') temp.sort(() => Math.random() - 0.5);
+        sessionWords = temp;
+    };
 
-        // 排序
-        if (userSettings.sortType === 'length') {
-            words.sort((a, b) => a.moraCount - b.moraCount);
-        } else { // default
-            words.sort((a, b) => a.originalIndex - b.originalIndex);
-        }
-
-        // 顺序
-        if (userSettings.sortOrder === 'desc') {
-            words.reverse();
-        } else if (userSettings.sortOrder === 'random') {
-            for (let i = words.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [words[i], words[j]] = [words[j], words[i]];
-            }
-        }
-        
-        sessionWords = words;
-        jumpToWordInput.max = sessionWords.length;
-    }
-
-    // --- 渲染逻辑 ---
-    function renderWord(index) {
-        if (index < 0 || index >= sessionWords.length) return;
-        
-        currentWordIndex = index;
-        const word = sessionWords[index];
-
-        const rubyHTML = word.japanese
-            .replace(/([\u4e00-\u9faf々]+)\[(.*?)\]/g, '<ruby>$1<rt>$2</rt></ruby>')
-            .replace(/([ぁ-んァ-ヶー]+)\[(.*?)\]/g, '<ruby>$1<rt>$2</rt></ruby>'); // 支持假名也带读音
-        wordDisplayContainer.innerHTML = rubyHTML;
-
-        wordInfoContainer.style.display = userSettings.showInfo ? 'block' : 'none';
-        if (userSettings.showInfo) {
-            let info = '';
-            if (word.wordType) info += `<p>词性: ${word.wordType}</p>`;
-            if (word.baseForm) info += `<p>基本形: ${word.baseForm}</p>`;
-            if (word.foreign) info += `<p>外来语: ${word.foreign}</p>`;
-            if (word.chinese) {
-                // 正确处理带HTML标签的中文释义
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = word.chinese;
-                const chineseText = tempDiv.textContent || tempDiv.innerText || "";
-                info += `<p>中文: ${chineseText}</p>`;
-            }
-            wordInfoContainer.innerHTML = info;
-        }
-
-        pitchOptionsContainer.innerHTML = '';
-        const numOptions = word.moraCount + 1;
-        const keys = keyMappings[userSettings.keyShortcut];
-        for (let i = 0; i < numOptions; i++) {
-            const optionWrapper = document.createElement('div');
-            optionWrapper.className = 'pitch-option';
-            
+    const loadWord = (index, playOnLoad = true) => {
+        if (!sessionWords[index]) return;
+        currentIndex = index;
+        const wordData = sessionWords[index];
+        dom.pitchExplanation.classList.remove('visible');
+        dom.wordDisplay.innerHTML = parseWordToRuby(wordData.japanese);
+        dom.wordInfo.style.display = settings.showInfo ? 'block' : 'none';
+        if (settings.showInfo) dom.wordInfo.innerHTML = [wordData.pos, wordData.baseForm, wordData.gaikokugo, wordData.chinese].filter(Boolean).join(' / ');
+        dom.currentIndexDisplay.textContent = currentIndex + 1;
+        dom.audioPlayer.src = `audios/${wordData.audio}`;
+        if (settings.autoPlay && playOnLoad) dom.audioPlayer.play().catch(e => console.log("Auto-play blocked."));
+        dom.pitchOptions.innerHTML = '';
+        const keyMap = keyMaps[settings.keyShortcut];
+        for (let i = 0; i <= wordData.moraCount; i++) {
             const btn = document.createElement('button');
-            btn.textContent = `⓪①②③④⑤⑥⑦⑧⑨⑩`[i];
+            btn.className = 'pitch-option-btn';
             btn.dataset.pitch = i;
+            btn.innerHTML = `<span>${'⓪①②③④⑤⑥⑦⑧⑨⑩'[i] || `[${i}]`}</span>`;
+            if (i < keyMap.length) btn.innerHTML += `<span class="keyboard-hint hint-option">${keyMap[i]}</span>`;
+            btn.addEventListener('click', handleOptionClick);
+            dom.pitchOptions.appendChild(btn);
+        }
+        if (settings.studyMode) showAnswer();
+        saveProgress();
+    };
 
-            const shortcutHint = document.createElement('span');
-            shortcutHint.className = 'shortcut-hint';
-            shortcutHint.textContent = keys[i] || '';
-
-            optionWrapper.appendChild(btn);
-            optionWrapper.appendChild(shortcutHint);
-            pitchOptionsContainer.appendChild(optionWrapper);
-        }
-        
-        pitchHint.textContent = '';
-        
-        if (userSettings.autoplay && !settingsPanel.classList.contains('is-open') && !wordListPanel.classList.contains('is-open')) {
-            playAudio();
-        }
-        
-        if (userSettings.learningMode) {
-            revealAnswer();
-        }
-        
-        saveSettings();
-    }
-    
-    function playAudio() {
-        const word = sessionWords[currentWordIndex];
-        if (word && word.audio) {
-            audioPlayer.src = `audios/${word.audio}`;
-            audioPlayer.play().catch(e => console.error("音频播放失败:", e));
-        }
-    }
-    
-    function revealAnswer() {
-        const word = sessionWords[currentWordIndex];
-        const correctPitches = word.pitch.split('').map(p => '⓪①②③④⑤⑥⑦⑧⑨⑩'.indexOf(p));
-        
-        const buttons = pitchOptionsContainer.querySelectorAll('button');
-        buttons.forEach(btn => {
-            const pitchValue = parseInt(btn.dataset.pitch, 10);
-            if (correctPitches.includes(pitchValue)) {
-                btn.classList.add('correct');
+    const handleOptionClick = (e) => {
+        const btn = e.currentTarget;
+        const pitch = parseInt(btn.dataset.pitch, 10);
+        const word = sessionWords[currentIndex];
+        const correct = word.pitch.split('').map(p => '⓪①②③④⑤⑥⑦⑧⑨⑩'.indexOf(p));
+        if (correct.includes(pitch)) {
+            btn.classList.add('correct');
+        } else {
+            const isAmbiguous = (correct.includes(0) && pitch === word.moraCount) || (correct.includes(word.moraCount) && pitch === 0);
+            if (isAmbiguous) {
+                btn.classList.add('ambiguous');
+                const moraSymbol = '⓪①②③④⑤⑥⑦⑧⑨⑩'[word.moraCount] || `[${word.moraCount}]`;
+                dom.pitchExplanation.textContent = `听觉上正确！但该词为 ${word.pitch} 调。⓪调和尾高调(${moraSymbol}调)的区别在于后接助词时，⓪调不降，尾高调会降。`;
+                dom.pitchExplanation.classList.add('visible');
+            } else {
+                btn.classList.add('incorrect');
             }
+        }
+        showAnswer();
+    };
+    
+    const showAnswer = () => {
+        const correct = sessionWords[currentIndex].pitch.split('').map(p => '⓪①②③④⑤⑥⑦⑧⑨⑩'.indexOf(p));
+        dom.pitchOptions.querySelectorAll('.pitch-option-btn').forEach(btn => {
+            if (correct.includes(parseInt(btn.dataset.pitch, 10))) btn.classList.add('correct');
             btn.disabled = true;
         });
-    }
+    };
 
-    // --- 交互逻辑 ---
-    function handleOptionSelection(selectedPitchStr) {
-        const selectedPitch = parseInt(selectedPitchStr, 10);
-        const word = sessionWords[currentWordIndex];
-        const correctPitches = word.pitch.split('').map(p => '⓪①②③④⑤⑥⑦⑧⑨⑩'.indexOf(p));
-        const N = word.moraCount;
+    const navigate = (dir) => { if (sessionWords.length > 0) loadWord((currentIndex + dir + sessionWords.length) % sessionWords.length); };
+    
+    const displayFatalError = (msg) => {
+        dom.wordDisplay.innerHTML = `<h2>${msg}</h2>`;
+        dom.wordInfo.textContent = '请更改单词表选择。';
+        dom.pitchOptions.innerHTML = '';
+        dom.navigationControls.style.display = 'none';
+        ['drawerBtn', 'settingsBtn', 'playAudioBtn'].forEach(k => dom[k] && (dom[k].disabled = true));
+        dom.totalCountDisplay.textContent = 0;
+        dom.currentIndexDisplay.textContent = 0;
+    };
 
-        const isCorrect = correctPitches.includes(selectedPitch);
-        const isAmbiguousCase = (correctPitches.includes(0) && selectedPitch === N) || (correctPitches.includes(N) && selectedPitch === 0);
+    const updateWordListDisplay = () => {
+        const names = selectedWordListIndices.map(i => data[i]?.name || '未知表').join('，');
+        dom.wordListNames.textContent = `当前：${names}`;
+    };
+
+    const populateWordListSelectionPanel = () => {
+        dom.wordListChoices.innerHTML = data.map((list, index) => `
+            <li class="word-list-item" data-index="${index}">
+                <input type="checkbox" id="list-checkbox-${index}" ${selectedWordListIndices.includes(index) ? 'checked' : ''}>
+                <label for="list-checkbox-${index}">${list.name}</label>
+            </li>
+        `).join('');
+    };
+    
+    const populateDrawer = () => {
+        dom.wordList.innerHTML = sessionWords.map((word, index) => `<li data-index="${index}" class="${index === currentIndex ? 'active' : ''}">${index + 1}. ${word.japanese.replace(/\s/g, '')} ${word.chinese}</li>`).join('');
+        const activeLi = dom.wordList.querySelector('.active');
+        if (activeLi) activeLi.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+
+    const initialize = () => {
+        loadSettings();
+        loadWordListSelection();
+        setupEventListeners();
+        updateWordListDisplay();
+    };
+
+    const setupEventListeners = () => {
+        const togglePanel = (panel, force) => {
+            const on = panel.classList.toggle('active', force);
+            let anyPanelActive = [dom.drawer, dom.settingsModal, dom.wordListSelectionPanel].some(p => p.classList.contains('active'));
+            dom.overlay.classList.toggle('active', anyPanelActive);
+            if(panel === dom.drawer && on) populateDrawer();
+            if(panel === dom.wordListSelectionPanel && on) populateWordListSelectionPanel();
+        };
+
+        dom.startBtn.addEventListener('click', () => {
+            aggregateLearnableWords();
+            generateSessionWords();
+            if (sessionWords.length === 0) {
+                alert("所选单词表中没有可学习的单词，请点击“编辑”重新选择。");
+                return;
+            }
+            dom.mainMenu.classList.remove('active');
+            dom.learningModule.classList.add('active');
+            dom.totalCountDisplay.textContent = sessionWords.length;
+            currentIndex = loadProgress();
+            loadWord(currentIndex, settings.autoPlay);
+            isReady = true;
+        });
+
+        // 新增：返回按钮事件监听
+        dom.backToMainMenuBtn.addEventListener('click', () => {
+            dom.learningModule.classList.remove('active');
+            dom.mainMenu.classList.add('active');
+            isReady = false; // 锁定键盘快捷键
+            dom.audioPlayer.pause(); // 暂停音频
+        });
         
-        const targetButton = pitchOptionsContainer.querySelector(`button[data-pitch="${selectedPitch}"]`);
-        if (!targetButton) return;
+        dom.editWordListsBtn.addEventListener('click', () => togglePanel(dom.wordListSelectionPanel, true));
+        
+        dom.closeWordListSelectionBtn.addEventListener('click', () => {
+            if (selectedWordListIndices.length === 0) {
+                alert("请至少选择一个单词表！");
+                return;
+            }
+            saveWordListSelection();
+            updateWordListDisplay();
+            togglePanel(dom.wordListSelectionPanel, false);
+        });
+        
+        dom.nextBtn.addEventListener('click', () => navigate(1));
+        dom.prevBtn.addEventListener('click', () => navigate(-1));
+        dom.playAudioBtn.addEventListener('click', replayAudio);
 
-        if (isCorrect) {
-            targetButton.classList.add('correct');
-            if (correctPitches.length > 1) {
-                const otherCorrect = correctPitches.find(p => p !== selectedPitch);
-                if(otherCorrect !== undefined) {
-                   pitchHint.textContent = `提示：${'⓪①②③④⑤⑥⑦⑧⑨⑩'[otherCorrect]} 也是正确的读音。`;
+        dom.drawerBtn.addEventListener('click', () => togglePanel(dom.drawer, true));
+        dom.closeDrawerBtn.addEventListener('click', () => togglePanel(dom.drawer, false));
+        dom.settingsBtn.addEventListener('click', () => togglePanel(dom.settingsModal, true));
+        dom.closeSettingsBtn.addEventListener('click', () => togglePanel(dom.settingsModal, false));
+        
+        dom.wordListChoices.addEventListener('click', e => {
+            const li = e.target.closest('li');
+            if (li) {
+                const cb = li.querySelector('input');
+                if (e.target.tagName !== 'INPUT') cb.checked = !cb.checked;
+                const idx = parseInt(li.dataset.index, 10);
+                if (cb.checked) {
+                    if (!selectedWordListIndices.includes(idx)) selectedWordListIndices.push(idx);
+                } else {
+                    selectedWordListIndices = selectedWordListIndices.filter(i => i !== idx);
                 }
             }
-        } else if (isAmbiguousCase) {
-            targetButton.classList.add('ambiguous');
-            pitchHint.innerHTML = `听觉正确！但 <b>⓪调(平板型)</b> 与 <b>${'⓪①②③④⑤⑥⑦⑧⑨⑩'[N]}调(尾高型)</b> 的区别在于其后接助词时音调是否下降。`;
-        } else {
-            targetButton.classList.add('incorrect');
-        }
-
-        correctPitches.forEach(p => {
-            const correctBtn = pitchOptionsContainer.querySelector(`button[data-pitch="${p}"]`);
-            if (correctBtn) correctBtn.classList.add('correct');
         });
-
-        pitchOptionsContainer.querySelectorAll('button').forEach(btn => btn.disabled = true);
-    }
-    
-    function nextWord() {
-        if (currentWordIndex < sessionWords.length - 1) {
-            renderWord(currentWordIndex + 1);
-        }
-    }
-    
-    function prevWord() {
-        if (currentWordIndex > 0) {
-            renderWord(currentWordIndex - 1);
-        }
-    }
-    
-    function populateWordList() {
-        const list = document.createElement('ul');
-        sessionWords.forEach((word, index) => {
-            const item = document.createElement('li');
-            const japaneseText = word.japanese.replace(/\[.*?\]/g, '');
-            const chineseText = (word.chinese.includes('<') ? '...' : word.chinese).split('（')[0]; // 简化中文显示
-            item.textContent = `${index + 1}. ${japaneseText} ${chineseText}`;
-            item.dataset.index = index;
-            if(index === currentWordIndex) {
-                item.classList.add('current');
-            }
-            list.appendChild(item);
-        });
-        wordListContent.innerHTML = '';
-        wordListContent.appendChild(list);
-    }
-
-    // --- 事件绑定 ---
-    function bindEvents() {
-        startBtn.addEventListener('click', () => {
-            mainMenu.classList.remove('active');
-            learningModule.classList.add('active');
-            // 第一次进入时，如果设置了自动播放，则播放音频
-            if (userSettings.autoplay) playAudio();
-        });
-
-        playAudioBtn.addEventListener('click', playAudio);
-        nextWordBtn.addEventListener('click', nextWord);
-        prevWordBtn.addEventListener('click', prevWord);
         
-        pitchOptionsContainer.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
-                handleOptionSelection(e.target.dataset.pitch);
-            }
+        dom.overlay.addEventListener('click', () => {
+            [dom.drawer, dom.settingsModal, dom.wordListSelectionPanel].forEach(p => togglePanel(p, false));
+        });
+        
+        dom.themeToggle.addEventListener('change', () => {
+            settings.theme = dom.themeToggle.checked ? 'dark' : 'light';
+            dom.body.dataset.theme = settings.theme;
+            saveSettings();
         });
 
-        document.addEventListener('keydown', (e) => {
-            if (!learningModule.classList.contains('active') || settingsPanel.classList.contains('is-open') || wordListPanel.classList.contains('is-open')) return;
+        dom.interactionHintSelect.addEventListener('change', (e) => {
+            settings.interactionHint = e.target.value;
+            applyHintSetting(settings.interactionHint);
+            saveSettings();
+        });
 
-            if (e.key === 'Enter') {
-                nextWordBtn.click();
-            } else if (e.key.toLowerCase() === 'r') {
-                playAudioBtn.click();
-            } else {
-                const keys = keyMappings[userSettings.keyShortcut];
-                const keyIndex = keys.indexOf(e.key.toLowerCase());
-                if (keyIndex !== -1) {
-                    const button = pitchOptionsContainer.querySelector(`button[data-pitch="${keyIndex}"]`);
-                    if (button && !button.disabled) {
-                        button.click();
-                    }
+        [dom.sortBySelect, dom.orderSelect].forEach(el => {
+            el.addEventListener('change', () => {
+                settings[el.id.startsWith('sort') ? 'sortBy' : 'order'] = el.value;
+                saveSettings();
+                // 仅当在学习界面时才重新生成和加载
+                if (isReady) {
+                    generateSessionWords();
+                    loadWord(0);
                 }
+            });
+        });
+
+        const simpleUpdater = (el, key, reload) => el.addEventListener('change', () => {
+            settings[key] = el.type === 'checkbox' ? el.checked : el.value;
+            saveSettings();
+            if (reload && isReady) {
+                loadWord(currentIndex, false);
             }
         });
+        simpleUpdater(dom.keyShortcutSelect, 'keyShortcut', true);
+        simpleUpdater(dom.showInfoToggle, 'showInfo', true);
+        simpleUpdater(dom.autoplayToggle, 'autoPlay');
+        simpleUpdater(dom.studyModeToggle, 'studyMode', true);
         
-        settingsBtn.addEventListener('click', () => settingsPanel.classList.add('is-open'));
-        wordListBtn.addEventListener('click', () => {
-            populateWordList();
-            wordListPanel.classList.add('is-open');
-        });
-        closePanelBtns.forEach(btn => btn.addEventListener('click', (e) => {
-            e.currentTarget.closest('.panel').classList.remove('is-open');
-        }));
-        
-        sortTypeSelect.addEventListener('change', (e) => { userSettings.sortType = e.target.value; applySettingsChange(); });
-        sortOrderSelect.addEventListener('change', (e) => { userSettings.sortOrder = e.target.value; applySettingsChange(); });
-        keyShortcutSelect.addEventListener('change', (e) => { userSettings.keyShortcut = e.target.value; renderWord(currentWordIndex); saveSettings(); });
-        showInfoToggle.addEventListener('change', (e) => { userSettings.showInfo = e.target.checked; renderWord(currentWordIndex); saveSettings(); });
-        autoplayToggle.addEventListener('change', (e) => { userSettings.autoplay = e.target.checked; saveSettings(); });
-        learningModeToggle.addEventListener('change', (e) => { userSettings.learningMode = e.target.checked; renderWord(currentWordIndex); saveSettings(); });
-
-        jumpBtn.addEventListener('click', () => {
-            const targetIndex = parseInt(jumpToWordInput.value, 10) - 1;
-            if (targetIndex >= 0 && targetIndex < sessionWords.length) {
-                renderWord(targetIndex);
-                settingsPanel.classList.remove('is-open');
+        dom.jumpToBtn.addEventListener('click', () => {
+            const idx = parseInt(dom.jumpToInput.value, 10) - 1;
+            if (idx >= 0 && idx < sessionWords.length) {
+                loadWord(idx);
+                togglePanel(dom.settingsModal, false);
             } else {
                 alert(`请输入 1 到 ${sessionWords.length} 之间的有效数字。`);
             }
         });
-        
-        wordListContent.addEventListener('click', (e) => {
-           const listItem = e.target.closest('li');
-           if (listItem) {
-               const index = parseInt(listItem.dataset.index, 10);
-               renderWord(index);
-               wordListPanel.classList.remove('is-open');
-           }
-        });
-    }
 
-    // --- 启动应用 ---
-    init();
+        dom.wordList.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (li) {
+                loadWord(parseInt(li.dataset.index, 10));
+                togglePanel(dom.drawer, false);
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (!isReady || !dom.learningModule.classList.contains('active') || dom.overlay.classList.contains('active') || document.activeElement.tagName === 'INPUT') return;
+            if (e.key.toLowerCase() === 'r') {
+                if (e.metaKey || e.ctrlKey) return;
+                e.preventDefault(); replayAudio(); return;
+            }
+            if (e.key === 'ArrowRight') { e.preventDefault(); navigate(1); return; }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); return; }
+            const keyMap = keyMaps[settings.keyShortcut];
+            const keyIndex = keyMap.indexOf(e.key.toLowerCase());
+            const btns = dom.pitchOptions.querySelectorAll('.pitch-option-btn');
+            if (keyIndex > -1 && btns[keyIndex] && !btns[keyIndex].disabled) {
+                e.preventDefault(); btns[keyIndex].click();
+            }
+        });
+    };
+    
+    initialize();
 });
