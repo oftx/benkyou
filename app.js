@@ -2,11 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let learnableWords = [], sessionWords = [], currentIndex = 0, isReady = false;
     let selectedWordListIndices = [];
+    // 新增：回答状态追踪
+    let isAnswered = false;
 
     const keyMaps = {
         qwerty: 'qwertyuiop'.split(''),
         abcdef: 'abcdefghijklmnopqrstuvwxyz'.split(''),
-        numeric: '1234567890'.split(''),
+        numeric: '0123456789'.split(''),
     };
     const defaultSettings = {
         theme: 'light',
@@ -60,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
         wordListSelectionPanel: document.getElementById('word-list-selection-panel'),
         wordListChoices: document.getElementById('word-list-choices'),
         closeWordListSelectionBtn: document.getElementById('close-word-list-selection-btn'),
-        // 新增：返回按钮的引用
         backToMainMenuBtn: document.getElementById('back-to-main-menu-btn'),
     };
 
@@ -146,6 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadWord = (index, playOnLoad = true) => {
         if (!sessionWords[index]) return;
         currentIndex = index;
+        // 新增：重置回答状态
+        isAnswered = false;
         const wordData = sessionWords[index];
         dom.pitchExplanation.classList.remove('visible');
         dom.wordDisplay.innerHTML = parseWordToRuby(wordData.japanese);
@@ -165,7 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', handleOptionClick);
             dom.pitchOptions.appendChild(btn);
         }
-        if (settings.studyMode) showAnswer();
+        if (settings.studyMode) {
+            showAnswer();
+            isAnswered = true; // 学习模式下直接视为已回答
+        }
         saveProgress();
     };
 
@@ -188,6 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         showAnswer();
+        // 新增：设置回答状态为 true
+        isAnswered = true;
     };
     
     const showAnswer = () => {
@@ -261,12 +269,11 @@ document.addEventListener('DOMContentLoaded', () => {
             isReady = true;
         });
 
-        // 新增：返回按钮事件监听
         dom.backToMainMenuBtn.addEventListener('click', () => {
             dom.learningModule.classList.remove('active');
             dom.mainMenu.classList.add('active');
-            isReady = false; // 锁定键盘快捷键
-            dom.audioPlayer.pause(); // 暂停音频
+            isReady = false;
+            dom.audioPlayer.pause();
         });
         
         dom.editWordListsBtn.addEventListener('click', () => togglePanel(dom.wordListSelectionPanel, true));
@@ -324,7 +331,6 @@ document.addEventListener('DOMContentLoaded', () => {
             el.addEventListener('change', () => {
                 settings[el.id.startsWith('sort') ? 'sortBy' : 'order'] = el.value;
                 saveSettings();
-                // 仅当在学习界面时才重新生成和加载
                 if (isReady) {
                     generateSessionWords();
                     loadWord(0);
@@ -364,12 +370,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('keydown', (e) => {
             if (!isReady || !dom.learningModule.classList.contains('active') || dom.overlay.classList.contains('active') || document.activeElement.tagName === 'INPUT') return;
+            
             if (e.key.toLowerCase() === 'r') {
                 if (e.metaKey || e.ctrlKey) return;
                 e.preventDefault(); replayAudio(); return;
             }
+
+            // 新增：处理 Enter 键
+            if (e.key === 'Enter' && isAnswered) {
+                e.preventDefault();
+                navigate(1);
+                return;
+            }
+
             if (e.key === 'ArrowRight') { e.preventDefault(); navigate(1); return; }
             if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); return; }
+
             const keyMap = keyMaps[settings.keyShortcut];
             const keyIndex = keyMap.indexOf(e.key.toLowerCase());
             const btns = dom.pitchOptions.querySelectorAll('.pitch-option-btn');
