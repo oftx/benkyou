@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日语声调学习</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 主菜单 -->
+    <div id="main-menu" class="view active">
+        <h1>日语入门学习</h1>
+        <button id="start-learning-btn">模块一：声调辨认</button>
+    </div>
+
+    <!-- 学习模块 -->
+    <div id="learning-module" class="view">
+        <header class="app-header">
+            <button id="settings-btn" class="icon-btn">⚙️</button>
+            <div class="progress-indicator">
+                <span id="current-word-index">1</span> / <span id="total-word-count"></span>
+            </div>
+            <button id="drawer-btn" class="icon-btn">☰</button>
+        </header>
+
+        <main class="content-area">
+            <div id="word-display-container"></div>
+            <div class="audio-controls">
+                <button id="play-audio-btn">🔊</button>
+                <audio id="audio-player"></audio>
+                <span class="keyboard-hint">(R)</span>
+            </div>
+            <div id="word-info-container"></div>
+            <div id="pitch-explanation" class="explanation-text"></div>
+            <div id="pitch-options-container"></div>
+        </main>
+
+        <footer class="navigation-controls">
+            <button id="prev-button">◀️ 上一个</button>
+            <button id="next-button">下一个 ▶️</button>
+            <span class="keyboard-hint">(Enter)</span>
+        </footer>
+    </div>
+
+    <!-- 单词列表抽屉 -->
+    <aside id="drawer">
+        <div class="drawer-header">
+            <h3>单词列表</h3>
+            <button id="close-drawer-btn" class="icon-btn">✖</button>
+        </div>
+        <ul id="word-list"></ul>
+    </aside>
+
+    <!-- 设置弹窗/面板 -->
+    <div id="settings-modal">
+        <div class="settings-header">
+            <h3>设置</h3>
+            <button id="close-settings-btn" class="icon-btn">✖</button>
+        </div>
+        <div class="settings-content">
+            <div class="setting-item">
+                <label for="sort-by-select">排序方式:</label>
+                <select id="sort-by-select">
+                    <option value="default">默认顺序</option>
+                    <option value="length">单词长度</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label for="order-select">顺序:</label>
+                <select id="order-select">
+                    <option value="asc">升序</option>
+                    <option value="desc">降序</option>
+                    <option value="random">乱序</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label for="key-shortcut-select">键盘快捷键:</label>
+                <select id="key-shortcut-select">
+                    <option value="qwerty">键盘顺序 (QWERTY)</option>
+                    <option value="abcdef">字母表顺序 (ABCDEF)</option>
+                    <option value="numeric">数字 (12345)</option>
+                </select>
+            </div>
+            <div class="setting-item checkbox-item">
+                <input type="checkbox" id="show-info-toggle">
+                <label for="show-info-toggle">显示单词信息</label>
+            </div>
+            <div class="setting-item checkbox-item">
+                <input type="checkbox" id="autoplay-toggle">
+                <label for="autoplay-toggle">自动播放读音</label>
+            </div>
+             <div class="setting-item checkbox-item">
+                <input type="checkbox" id="study-mode-toggle">
+                <label for="study-mode-toggle">学习模式 (直接显示答案)</label>
+            </div>
+            <div class="setting-item">
+                <label for="jump-to-input">跳转到序号:</label>
+                <div class="jump-control">
+                    <input type="number" id="jump-to-input" min="1">
+                    <button id="jump-to-btn">跳转</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 遮罩层 -->
+    <div id="overlay"></div>
+
+    <script src="data.js"></script>
+    <script src="app.js" defer></script>
+</body>
+</html>
