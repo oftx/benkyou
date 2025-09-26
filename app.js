@@ -64,7 +64,21 @@ document.addEventListener('DOMContentLoaded', () => {
         backToMainMenuBtn: document.getElementById('back-to-main-menu-btn'),
     };
 
-    // --- 核心修复：彻底重写 parseWordToRuby，确保每个音拍对应一个 DOM 元素 ---
+    // --- 核心修复：新增 groupYoon 辅助函数 ---
+    const YOON_CHARS = new Set(['ゃ', 'ゅ', 'ょ', 'ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ', 'ャ', 'ュ', 'ョ', 'ァ', 'ィ', 'ゥ', 'ェ', 'ォ']);
+    const groupYoon = (text) => {
+        const result = [];
+        for (let i = 0; i < text.length; i++) {
+            if (i + 1 < text.length && YOON_CHARS.has(text[i + 1])) {
+                result.push(text[i] + text[i + 1]);
+                i++;
+            } else {
+                result.push(text[i]);
+            }
+        }
+        return result;
+    };
+
     const parseWordToRuby = (wordString) => {
         const regex = /([^\s\[]+)\[(.+?)\]|([^\s\[]+)/g;
         let html = '';
@@ -73,11 +87,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (match[1] && match[2]) {
                 const base = match[1];
                 const rubyText = match[2];
-                // 将注音文本按字符拆分，并为每个字符包裹 span
-                const rubySpans = [...rubyText].map(char => `<span class="ruby-char">${char}</span>`).join('');
+                // 使用 groupYoon 来正确组合拗音
+                const rubySpans = groupYoon(rubyText).map(mora => `<span class="ruby-char">${mora}</span>`).join('');
                 html += `<ruby>${base}<rt>${rubySpans}</rt></ruby>`;
             } else if (match[3]) {
-                html += [...match[3]].map(char => `<span>${char}</span>`).join('');
+                // 使用 groupYoon 来正确组合拗音
+                html += groupYoon(match[3]).map(mora => `<span>${mora}</span>`).join('');
             }
         }
         return html;
@@ -88,14 +103,13 @@ document.addEventListener('DOMContentLoaded', () => {
         result = result.replace(/[^ぁ-んァ-ヶー]/g, '');
         return result;
     };
-    const countMora = (kana) => kana.replace(/[ゃゅょぁぃぅぇぉャュョァィゥェォ]/g, '').length;
+    const countMora = (kana) => groupYoon(kana).length;
     const applyHintSetting = (hintValue) => dom.body.dataset.interactionHint = hintValue;
     const replayAudio = () => {
         dom.audioPlayer.currentTime = 0;
-        dom.audioplayer.play().catch(e => console.log("Audio replay failed:", e));
+        dom.audioPlayer.play().catch(e => console.log("Audio replay failed:", e));
     };
 
-    // --- 核心修复：重写高亮函数，逻辑更简单直接 ---
     const highlightPitch = (pitch) => {
         const wordData = sessionWords[currentIndex];
         if (pitch === -1) return;
@@ -111,14 +125,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // 获取所有代表音拍的元素（纯假名的 span 和注音的 span）
         const moraElements = [...dom.wordDisplay.querySelectorAll('span:not(.keyboard-hint), .ruby-char')];
         
         moraElements.forEach((el, index) => {
             const moraIndex = index + 1;
+            const parentEl = el.closest('span, ruby');
             if (highPitchMorae.has(moraIndex)) {
-                // 直接高亮对应的父元素（span 或 ruby）
-                el.closest('span, ruby').classList.add('highlight-strong');
+                parentEl.classList.add('highlight-strong');
             }
         });
     };
@@ -218,7 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (correctPitches.includes(selectedPitch)) {
             btn.classList.add('correct');
-            // 核心修复：只根据用户选择的正确音调来高亮
             showAnswer(selectedPitch);
         } else {
             const isAmbiguous = (correctPitches.includes(0) && selectedPitch === word.moraCount) || (correctPitches.includes(word.moraCount) && selectedPitch === 0);
@@ -230,11 +242,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 btn.classList.add('incorrect');
             }
-            showAnswer(); // 如果错误，则高亮默认的第一个正确答案
+            showAnswer();
         }
     };
     
-    // 核心修复：接受一个可选参数来指定高亮哪个音调
     const showAnswer = (pitchToHighlight = -1) => {
         isAnswered = true;
         const correctPitches = sessionWords[currentIndex].pitch.split('').map(p => '⓪①②③④⑤⑥⑦⑧⑨⑩'.indexOf(p));
@@ -246,7 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pitchToHighlight !== -1) {
             highlightPitch(pitchToHighlight);
         } else {
-            // 学习模式或回答错误时，随机/默认高亮一个
             const pitch = correctPitches[Math.floor(Math.random() * correctPitches.length)];
             highlightPitch(pitch);
         }
