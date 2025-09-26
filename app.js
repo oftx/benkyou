@@ -64,7 +64,6 @@ document.addEventListener('DOMContentLoaded', () => {
         backToMainMenuBtn: document.getElementById('back-to-main-menu-btn'),
     };
 
-    // --- 核心修复：新增 groupYoon 辅助函数 ---
     const YOON_CHARS = new Set(['ゃ', 'ゅ', 'ょ', 'ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ', 'ャ', 'ュ', 'ョ', 'ァ', 'ィ', 'ゥ', 'ェ', 'ォ']);
     const groupYoon = (text) => {
         const result = [];
@@ -85,14 +84,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let match;
         while ((match = regex.exec(wordString)) !== null) {
             if (match[1] && match[2]) {
-                const base = match[1];
-                const rubyText = match[2];
-                // 使用 groupYoon 来正确组合拗音
-                const rubySpans = groupYoon(rubyText).map(mora => `<span class="ruby-char">${mora}</span>`).join('');
-                html += `<ruby>${base}<rt>${rubySpans}</rt></ruby>`;
+                html += `<ruby>${match[1]}<rt>${match[2]}</rt></ruby>`;
             } else if (match[3]) {
-                // 使用 groupYoon 来正确组合拗音
-                html += groupYoon(match[3]).map(mora => `<span>${mora}</span>`).join('');
+                html += `<span>${match[3]}</span>`;
             }
         }
         return html;
@@ -110,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.audioPlayer.play().catch(e => console.log("Audio replay failed:", e));
     };
 
+    // --- 核心修复：彻底重写高亮函数，确保逻辑正确 ---
     const highlightPitch = (pitch) => {
         const wordData = sessionWords[currentIndex];
         if (pitch === -1) return;
@@ -125,14 +120,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        const moraElements = [...dom.wordDisplay.querySelectorAll('span:not(.keyboard-hint), .ruby-char')];
-        
-        moraElements.forEach((el, index) => {
-            const moraIndex = index + 1;
-            const parentEl = el.closest('span, ruby');
-            if (highPitchMorae.has(moraIndex)) {
-                parentEl.classList.add('highlight-strong');
+        let moraCounter = 0;
+        [...dom.wordDisplay.childNodes].forEach(el => {
+            if (!(el instanceof Element)) return;
+            
+            const kana = el.tagName === 'RUBY' ? el.querySelector('rt').textContent : el.textContent;
+            const moraeInEl = countMora(kana);
+            
+            let highCount = 0;
+            for (let i = 0; i < moraeInEl; i++) {
+                if (highPitchMorae.has(moraCounter + i + 1)) {
+                    highCount++;
+                }
             }
+            
+            if (highCount > 0) {
+                el.classList.add(highCount === moraeInEl ? 'highlight-strong' : 'highlight-soft');
+            }
+            
+            moraCounter += moraeInEl;
         });
     };
 
