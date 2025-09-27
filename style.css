@@ -2,13 +2,6 @@
 @font-face {
     font-family: 'SourceHanSerifJP';
     src: url('fonts/_SourceHanSerifJP-Regular.otf') format('opentype');
-    /* 假设字体文件支持不同字重 */
-    font-weight: lighter; 
-}
-@font-face {
-    font-family: 'SourceHanSerifJP';
-    src: url('fonts/_SourceHanSerifJP-Regular.otf') format('opentype');
-    font-weight: normal;
 }
 @font-face {
     font-family: 'SourceHanSerifCN';
@@ -49,7 +42,7 @@
     --shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
 
-/* --- 全局样式 & 动画加速 --- */
+/* --- 全局样式 & 动画 --- */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
     height: 100%;
@@ -139,7 +132,7 @@ button:active { box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
     padding: 20px; text-align: center; gap: 15px;
 }
 
-/* --- 核心重构: 新的单词显示和高亮样式 --- */
+/* --- 单词显示和高亮样式 --- */
 #word-display-container {
     display: flex;
     justify-content: center;
@@ -154,22 +147,22 @@ button:active { box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
     margin: 0 0.05em;
 }
 
-/* 默认（回答前）状态 */
 .kanji {
     font-size: 6rem;
     line-height: 1;
-    font-weight: normal; /* 默认正常字重 */
+    font-weight: normal;
     color: var(--primary-text);
-    transition: opacity 0.15s ease, font-weight 0.15s ease;
+    transition: opacity 0.15s ease, font-weight 0.15s ease, visibility 0.15s ease;
 }
 .rt-container {
     display: flex;
     line-height: 1.2;
     margin-bottom: 0.2em;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 .rt-mora {
     font-size: 2.2rem;
-    font-weight: normal; /* 默认正常字重 */
+    font-weight: normal;
     color: var(--secondary-text);
     transition: opacity 0.15s ease, font-weight 0.15s ease;
 }
@@ -188,9 +181,29 @@ button:active { box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
 
 #word-display-container.answered .kanji.highlight-soft {
     opacity: 1;
-    /* opacity: 0.618; */
 }
-/* --- 重构结束 --- */
+
+/* --- 核心修复: 可见性设置 --- */
+/* 假名注音 */
+body[data-kana-visibility="always-hide"] .rt-container {
+    display: none;
+}
+/* 在回答前隐藏 */
+body[data-kana-visibility="hide-on-answer"] #word-display-container:not(.answered) .rt-container {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* 日文 */
+body[data-jp-visibility="always-hide"] .kanji {
+    display: none;
+}
+/* 在回答前隐藏 */
+body[data-jp-visibility="hide-on-answer"] #word-display-container:not(.answered) .kanji {
+    opacity: 0;
+    visibility: hidden;
+}
+/* --- 修复结束 --- */
 
 
 /* 音频 & 信息 */
@@ -220,11 +233,11 @@ body[data-interaction-hint="hide"] .keyboard-hint { display: none; }
     gap: 20px; padding: 20px;
 }
 
-/* --- 抽屉 & 面板 (动画加速) --- */
+/* --- 抽屉 & 面板 --- */
 .slide-panel {
     position: fixed; bottom: 0; left: 0; height: 100%; width: 100%;
     background-color: var(--panel-bg);
-    transform: translateY(100%); transition: transform 0.2s ease-in-out; /* 加快 */
+    transform: translateY(100%); transition: transform 0.2s ease-in-out;
     z-index: 1000; display: flex; flex-direction: column;
 }
 .slide-panel.active { transform: translateY(0); }
@@ -236,12 +249,19 @@ body[data-interaction-hint="hide"] .keyboard-hint { display: none; }
 #word-list li:hover { background-color: var(--btn-hover-bg); }
 #word-list li.active { background-color: var(--accent-color); color: white; }
 .word-list-item {
-    display: flex; align-items: center; gap: 15px; padding: 15px;
-    font-size: 1.1rem; cursor: pointer; border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
 }
 .word-list-item:last-child { border-bottom: none; }
 .word-list-item input[type="checkbox"] {
-    width: 1.5rem; height: 1.5rem; flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-shrink: 0;
 }
 .settings-content { padding: 20px; display: flex; flex-direction: column; gap: 25px; }
 .setting-item { display: flex; flex-direction: column; gap: 8px; }
@@ -252,7 +272,7 @@ body[data-interaction-hint="hide"] .keyboard-hint { display: none; }
 .jump-control { display: flex; gap: 10px; }
 .jump-control input { flex: 1; }
 
-/* 遮罩层 (动画加速) */
+/* 遮罩层 */
 #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s; }
 #overlay.active { opacity: 1; visibility: visible; }
 

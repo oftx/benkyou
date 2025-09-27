@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
         abcdef: 'abcdefghijklmnopqrstuvwxyz'.split(''),
         numeric: '0123456789'.split(''),
     };
+    // --- 核心修改 1: 添加新的默认设置 ---
     const defaultSettings = {
         theme: 'light',
         interactionHint: 'show',
@@ -18,9 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
         keyShortcut: 'qwerty',
         autoPlay: true,
         studyMode: false,
+        kanaVisibility: 'always-show', // 新增：假名可见性
+        jpVisibility: 'always-show',   // 新增：日文可见性
     };
     let settings = {};
 
+    // --- 核心修改 2: 添加新的 DOM 引用 ---
     const dom = {
         body: document.body,
         mainMenu: document.getElementById('main-menu'),
@@ -52,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showInfoToggle: document.getElementById('show-info-toggle'),
         autoplayToggle: document.getElementById('autoplay-toggle'),
         studyModeToggle: document.getElementById('study-mode-toggle'),
+        kanaVisibilitySelect: document.getElementById('kana-visibility-select'), // 新增
+        jpVisibilitySelect: document.getElementById('jp-visibility-select'),     // 新增
         jumpToInput: document.getElementById('jump-to-input'),
         jumpToBtn: document.getElementById('jump-to-btn'),
         overlay: document.getElementById('overlay'),
@@ -134,6 +140,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const countMora = (kana) => groupYoon(kana).length;
     const applyHintSetting = (hintValue) => dom.body.dataset.interactionHint = hintValue;
+    
+    // --- 核心修改 3: 创建应用可见性设置的函数 ---
+    const applyVisibilitySettings = () => {
+        dom.body.dataset.kanaVisibility = settings.kanaVisibility;
+        dom.body.dataset.jpVisibility = settings.jpVisibility;
+    };
+
     const replayAudio = () => {
         dom.audioPlayer.currentTime = 0;
         dom.audioPlayer.play().catch(e => console.log("Audio replay failed:", e));
@@ -179,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // --- 核心修改 4: 更新 loadSettings 以处理新设置 ---
     const loadSettings = () => {
         try {
             const saved = JSON.parse(localStorage.getItem('jpPitchSettings'));
@@ -186,9 +200,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { settings = { ...defaultSettings }; }
         if (!keyMaps[settings.keyShortcut]) settings.keyShortcut = defaultSettings.keyShortcut;
         if (!['show', 'partial', 'hide'].includes(settings.interactionHint)) settings.interactionHint = defaultSettings.interactionHint;
+        
         dom.body.dataset.theme = settings.theme;
         dom.themeToggle.checked = settings.theme === 'dark';
+        
         applyHintSetting(settings.interactionHint);
+        applyVisibilitySettings(); // 应用可见性设置
+        
         dom.interactionHintSelect.value = settings.interactionHint;
         dom.sortBySelect.value = settings.sortBy;
         dom.orderSelect.value = settings.order;
@@ -196,7 +214,10 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.showInfoToggle.checked = settings.showInfo;
         dom.autoplayToggle.checked = settings.autoPlay;
         dom.studyModeToggle.checked = settings.studyMode;
+        dom.kanaVisibilitySelect.value = settings.kanaVisibility; // 更新 UI
+        dom.jpVisibilitySelect.value = settings.jpVisibility;     // 更新 UI
     };
+
     const saveSettings = () => localStorage.setItem('jpPitchSettings', JSON.stringify(settings));
     const saveProgress = () => { if (sessionWords[currentIndex]) localStorage.setItem('jpPitchLastWordId', sessionWords[currentIndex].id); };
 
@@ -243,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const wordData = sessionWords[index];
         dom.pitchExplanation.classList.remove('visible');
         
-        // --- 核心修改 1: 移除 .answered 类，重置样式 ---
         dom.wordDisplay.classList.remove('answered');
         renderWord(wordData.japanese);
 
@@ -295,7 +315,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const showAnswer = (pitchToHighlight = -1) => {
         isAnswered = true;
-        // --- 核心修改 2: 添加 .answered 类，触发新样式 ---
         dom.wordDisplay.classList.add('answered');
 
         const correctPitches = sessionWords[currentIndex].pitch.split('').map(p => '⓪①②③④⑤⑥⑦⑧⑨⑩'.indexOf(p));
@@ -351,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateWordListDisplay();
     };
 
+    // --- 核心修改 5: 为新设置添加事件监听器 ---
     const setupEventListeners = () => {
         const togglePanel = (panel, force) => {
             const on = panel.classList.toggle('active', force);
@@ -430,6 +450,19 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.interactionHintSelect.addEventListener('change', (e) => {
             settings.interactionHint = e.target.value;
             applyHintSetting(settings.interactionHint);
+            saveSettings();
+        });
+
+        // 新增可见性设置的监听器
+        dom.kanaVisibilitySelect.addEventListener('change', (e) => {
+            settings.kanaVisibility = e.target.value;
+            applyVisibilitySettings();
+            saveSettings();
+        });
+
+        dom.jpVisibilitySelect.addEventListener('change', (e) => {
+            settings.jpVisibility = e.target.value;
+            applyVisibilitySettings();
             saveSettings();
         });
 
