@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         studyMode: false,
         kanaVisibility: 'always-show',
         jpVisibility: 'always-show',
+        meaningVisibility: 'always-show',
     };
     let settings = {};
 
@@ -64,6 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
         dictationModule: document.getElementById('dictation-module'),
         dictationPlayAudioBtn: document.getElementById('dictation-play-audio-btn'),
         dictationInput: document.getElementById('dictation-input'),
+        dictationMeaningContainer: document.getElementById('dictation-meaning-container'),
+        showAnswerBtnDictation: document.getElementById('show-answer-btn-dictation'),
         dictationAnswerContainer: document.getElementById('dictation-answer-container'),
         dictationAnswerFeedback: document.getElementById('dictation-answer-feedback'),
         dictationCorrectAnswer: document.getElementById('dictation-correct-answer'),
@@ -81,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         studyModeToggle: document.getElementById('study-mode-toggle'),
         kanaVisibilitySelect: document.getElementById('kana-visibility-select'),
         jpVisibilitySelect: document.getElementById('jp-visibility-select'),
+        meaningVisibilitySelect: document.getElementById('meaning-visibility-select'),
         jumpToInput: document.getElementById('jump-to-input'),
         jumpToBtn: document.getElementById('jump-to-btn'),
     };
@@ -194,6 +198,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const generateSessionWords = () => {
         let temp = [...learnableWords];
+
+        if (activeModule === 'pitch') {
+            temp = temp.filter(word => word.pitch && word.pitch.length > 0);
+        }
+
         if (settings.sortBy === 'length') temp.sort((a, b) => a.moraCount - b.moraCount);
         if (settings.order === 'desc') temp.reverse();
         else if (settings.order === 'random') temp.sort(() => Math.random() - 0.5);
@@ -333,10 +342,18 @@ document.addEventListener('DOMContentLoaded', () => {
         currentIndex = index;
         isAnswered = false;
         const wordData = sessionWords[index];
+
         dom.dictationInput.value = '';
         dom.dictationInput.disabled = false;
         dom.dictationInput.classList.remove('correct', 'incorrect');
         dom.dictationAnswerContainer.classList.remove('visible');
+        dom.dictationMeaningContainer.classList.remove('visible');
+
+        if (settings.meaningVisibility === 'always-show' && wordData.chinese) {
+            dom.dictationMeaningContainer.textContent = wordData.chinese;
+            dom.dictationMeaningContainer.classList.add('visible');
+        }
+
         dom.dictationInput.focus();
         dom.dictationProgressCurrent.textContent = currentIndex + 1;
         dom.audioPlayer.src = `audios/${wordData.audio}`;
@@ -344,57 +361,53 @@ document.addEventListener('DOMContentLoaded', () => {
         saveProgress();
     };
     
-    // --- 核心修复：从0重构的答案验证算法 ---
     const checkDictationAnswer = () => {
         if (isAnswered) return;
-        isAnswered = true;
-        dom.dictationInput.disabled = true;
-        
-        // 步骤1：定义一个净化函数，它将移除所有非核心的日文字符
+
         const purifyString = (str) => {
-            // 这个正则表达式匹配任何非（hiragana, katakana, kanji, or numbers）的字符
-            // \u3040-\u309F: Hiragana
-            // \u30A0-\u30FF: Katakana
-            // \u4E00-\u9FAF: Common Kanji
-            // \u3400-\u4DBF: Rare Kanji
-            // 0-9: Numbers
             const nonCoreCharRegex = /[^ぁ-んァ-ヶー一-龯0-9]/g;
             return str.replace(nonCoreCharRegex, '');
         };
 
         const userInput = dom.dictationInput.value.trim();
         const wordData = sessionWords[currentIndex];
-        
-        // 步骤2：生成所有可能的原始答案组合
         const validRawAnswers = generateValidAnswers(wordData.japanese);
-        
-        // 步骤3：净化用户输入
         const purifiedUserInput = purifyString(userInput);
         
         let isCorrect = false;
-        // 步骤4：遍历每一个原始答案，净化它，然后与净化后的用户输入进行比较
         for (const rawAnswer of validRawAnswers) {
             const purifiedAnswer = purifyString(rawAnswer);
             if (purifiedAnswer && purifiedAnswer === purifiedUserInput) {
                 isCorrect = true;
-                break; // 找到一个匹配就足够了
+                break;
             }
         }
         
-        // 步骤5：显示结果
-        showDictationAnswer(isCorrect, wordData.japanese.replace(/\[.+?\]/g, ''));
+        if (isCorrect) {
+            isAnswered = true;
+            dom.dictationInput.disabled = true;
+            dom.dictationInput.classList.remove('incorrect');
+            dom.dictationInput.classList.add('correct');
+            showDictationAnswer(true, wordData.japanese.replace(/\[.+?\]/g, ''));
+        } else {
+            dom.dictationInput.classList.add('incorrect');
+        }
     };
 
     const showDictationAnswer = (isCorrect, correctAnswer) => {
         if (isCorrect) {
-            dom.dictationInput.classList.add('correct');
             dom.dictationAnswerFeedback.textContent = '正确！';
         } else {
             dom.dictationInput.classList.add('incorrect');
-            dom.dictationAnswerFeedback.textContent = '错误。正解：';
+            dom.dictationAnswerFeedback.textContent = '正确答案：';
         }
         dom.dictationCorrectAnswer.textContent = correctAnswer;
         dom.dictationAnswerContainer.classList.add('visible');
+
+        if (settings.meaningVisibility === 'show-on-answer' && sessionWords[currentIndex].chinese) {
+            dom.dictationMeaningContainer.textContent = sessionWords[currentIndex].chinese;
+            dom.dictationMeaningContainer.classList.add('visible');
+        }
     };
 
     // ==================== 初始化与事件绑定 ====================
@@ -436,8 +449,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("所选单词表中没有可学习的单词，请点击“编辑”重新选择。");
                 return;
             }
-            generateSessionWords();
             activeModule = module;
+            generateSessionWords();
+
+            if (sessionWords.length === 0) {
+                alert("所选单词表中没有符合当前模块要求的单词（例如，声调模块需要有声调数据）。");
+                activeModule = null;
+                return;
+            }
+
             dom.mainMenu.classList.remove('active');
             isReady = true;
             const startIndex = loadProgress();
@@ -509,6 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         dom.overlay.addEventListener('click', () => [dom.drawer, dom.settingsModal, dom.wordListSelectionPanel].forEach(p => togglePanel(p, false)));
         
+        // --- 设置面板事件 ---
         dom.themeToggle.addEventListener('change', () => {
             settings.theme = dom.themeToggle.checked ? 'dark' : 'light';
             dom.body.dataset.theme = settings.theme;
@@ -531,6 +552,14 @@ document.addEventListener('DOMContentLoaded', () => {
             settings.jpVisibility = e.target.value;
             applyVisibilitySettings();
             saveSettings();
+        });
+
+        dom.meaningVisibilitySelect.addEventListener('change', (e) => {
+            settings.meaningVisibility = e.target.value;
+            saveSettings();
+            if (isReady && activeModule === 'dictation' && !isAnswered) {
+                loadDictationWord(currentIndex, false);
+            }
         });
 
         [dom.sortBySelect, dom.orderSelect].forEach(el => {
@@ -587,6 +616,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // --- 听写模块特定事件 ---
+        dom.showAnswerBtnDictation.addEventListener('click', () => {
+            if (isAnswered) return;
+            isAnswered = true;
+            dom.dictationInput.disabled = true;
+            const wordData = sessionWords[currentIndex];
+            showDictationAnswer(false, wordData.japanese.replace(/\[.+?\]/g, ''));
+        });
+
+        dom.dictationInput.addEventListener('input', () => {
+            if (!isAnswered) {
+                dom.dictationInput.classList.remove('incorrect');
+            }
+        });
+
+        // --- 全局键盘事件 ---
         window.addEventListener('keydown', (e) => {
             if (!isReady || dom.overlay.classList.contains('active')) return;
             const isInputActive = document.activeElement === dom.dictationInput;
@@ -599,9 +644,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (e.key === 'Enter') {
-                if (isInputActive && activeModule === 'dictation' && !isAnswered) {
+                if (isInputActive && activeModule === 'dictation') {
                     e.preventDefault();
-                    checkDictationAnswer();
+                    if (!isAnswered) {
+                        checkDictationAnswer();
+                    } else {
+                        navigate(1);
+                    }
                 } else if (isAnswered) {
                     e.preventDefault();
                     navigate(1);
@@ -614,7 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.key === 'ArrowRight') { e.preventDefault(); navigate(1); return; }
             if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); return; }
 
-            if (activeModule === 'pitch') {
+            if (activeModule === 'pitch' && !isAnswered) {
                 const keyMap = keyMaps[settings.keyShortcut];
                 const keyIndex = keyMap.indexOf(e.key.toLowerCase());
                 const btns = dom.pitchOptions.querySelectorAll('.pitch-option-btn');

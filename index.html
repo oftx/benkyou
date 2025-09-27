@@ -72,7 +72,11 @@
                 <button id="dictation-play-audio-btn" aria-label="重听读音"><span>重听</span>🔊</button>
                 <span class="keyboard-hint hint-nav">(R)</span>
             </div>
+            <div id="dictation-meaning-container" class="explanation-text"></div>
             <input type="text" id="dictation-input" placeholder="请在此输入假名或汉字..." autocomplete="off" autocapitalize="off" spellcheck="false">
+            <div class="dictation-controls">
+                <button id="show-answer-btn-dictation">显示答案</button>
+            </div>
             <div id="dictation-answer-container" class="explanation-text">
                 <span id="dictation-answer-feedback"></span>
                 <span id="dictation-correct-answer"></span>
@@ -134,6 +138,13 @@
                     <option value="always-hide">总是隐藏</option>
                 </select>
             </div>
+            <div class="setting-item setting-dictation-only">
+                <label for="meaning-visibility-select">单词释义:</label>
+                <select id="meaning-visibility-select">
+                    <option value="always-show">总是显示</option>
+                    <option value="show-on-answer">回答后显示</option>
+                </select>
+            </div>
             <div class="setting-item">
                 <label for="sort-by-select">排序方式:</label>
                 <select id="sort-by-select">
@@ -157,7 +168,7 @@
                     <option value="numeric">数字 (12345)</option>
                 </select>
             </div>
-            <div class="setting-item checkbox-item">
+            <div class="setting-item checkbox-item setting-pitch-only">
                 <input type="checkbox" id="show-info-toggle">
                 <label for="show-info-toggle">显示单词信息</label>
             </div>

@@ -162,6 +162,13 @@ body[data-interaction-hint="partial"] .hint-nav, body[data-interaction-hint="hid
     font-size: 1.5rem; padding: 15px 25px; border-radius: 12px;
     display: inline-flex; align-items: center; gap: 10px;
 }
+#dictation-meaning-container {
+    margin-bottom: 0; /* Override default gap */
+    background-color: transparent;
+    border: 1px solid transparent;
+    font-size: 1.1rem;
+    color: var(--secondary-text);
+}
 #dictation-input {
     width: 80%; max-width: 600px; padding: 15px; font-size: 2rem;
     text-align: center; border: 2px solid var(--border-color); border-radius: 8px;
@@ -170,13 +177,35 @@ body[data-interaction-hint="partial"] .hint-nav, body[data-interaction-hint="hid
 }
 #dictation-input:focus { outline: none; border-color: var(--accent-color); }
 #dictation-input.correct {
-    background-color: #28a74520; border-color: var(--correct-color); color: var(--correct-color);
+    border-color: var(--correct-color);
+}
+#dictation-input.correct:disabled {
+     background-color: #28a74520; color: var(--correct-color);
 }
 #dictation-input.incorrect {
-    background-color: #dc354520; border-color: var(--incorrect-color); color: var(--incorrect-color);
+    border-color: var(--incorrect-color);
+}
+#dictation-input.incorrect:disabled {
+    background-color: #dc354520; color: var(--incorrect-color);
+}
+
+.dictation-controls {
+    margin-top: 0; /* Override default gap */
+}
+#show-answer-btn-dictation {
+    background: transparent;
+    border: none;
+    color: var(--secondary-text);
+    font-size: 0.9rem;
+    padding: 5px 10px;
+}
+#show-answer-btn-dictation:hover {
+    color: var(--accent-color);
+    background-color: transparent;
 }
 #dictation-answer-container {
-    margin-top: 15px; padding: 15px; font-size: 1.2rem; min-height: 0;
+    margin-top: 0;
+    padding: 15px; font-size: 1.2rem; min-height: 0;
     background-color: transparent; border: 1px solid var(--border-color); border-radius: 8px;
 }
 #dictation-answer-container:not(.visible) { display: none; }
@@ -212,9 +241,11 @@ body[data-interaction-hint="partial"] .hint-nav, body[data-interaction-hint="hid
 .jump-control { display: flex; gap: 10px; }
 .jump-control input { flex: 1; }
 
-.setting-pitch-only { display: none; }
+.setting-pitch-only, .setting-dictation-only { display: none; }
 #settings-modal[data-module="pitch"] .setting-pitch-only { display: flex; flex-direction: column; }
 #settings-modal[data-module="pitch"] .setting-pitch-only.checkbox-item { flex-direction: row; }
+#settings-modal[data-module="dictation"] .setting-dictation-only { display: flex; flex-direction: column; }
+
 
 #overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
