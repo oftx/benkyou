@@ -78,26 +78,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     };
     
-    // --- 核心修复：重写 renderWord 以正确处理纯假名单词 ---
     const renderWord = (wordString) => {
-        dom.wordDisplay.innerHTML = ''; // 清空容器
+        dom.wordDisplay.innerHTML = '';
         const fragment = document.createDocumentFragment();
         const regex = /([^\s\[]+)\[(.+?)\]|([^\s\[]+)/g;
         let match;
 
         while ((match = regex.exec(wordString)) !== null) {
-            // 情况 1: 汉字[假名] 格式, e.g., 彼[かの]
             if (match[1] && match[2]) {
                 const segment = document.createElement('div');
                 segment.className = 'word-segment';
-
                 const kanjiSpan = document.createElement('span');
                 kanjiSpan.className = 'kanji';
                 kanjiSpan.textContent = match[1];
-                
                 const rtContainer = document.createElement('div');
                 rtContainer.className = 'rt-container';
-
                 const morae = groupYoon(match[2]);
                 morae.forEach(mora => {
                     const moraSpan = document.createElement('span');
@@ -105,32 +100,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     moraSpan.textContent = mora;
                     rtContainer.appendChild(moraSpan);
                 });
-
                 segment.appendChild(rtContainer);
                 segment.appendChild(kanjiSpan);
                 fragment.appendChild(segment);
             }
-            // 情况 2: 纯假名/无括号的文本, e.g., そちら
             else if (match[3]) {
                 const morae = groupYoon(match[3]);
-                // 为每一个音拍创建一个独立的 segment
                 morae.forEach(mora => {
                     const segment = document.createElement('div');
                     segment.className = 'word-segment';
-
-                    // 在这种情况下，“汉字”部分就是音拍本身
                     const kanjiSpan = document.createElement('span');
                     kanjiSpan.className = 'kanji';
                     kanjiSpan.textContent = mora;
-
-                    // 注音部分是隐藏的，但为了保持结构统一性和音拍计数，仍然创建它
                     const rtContainer = document.createElement('div');
                     rtContainer.className = 'rt-container';
                     const moraSpan = document.createElement('span');
                     moraSpan.className = 'rt-mora visually-hidden';
                     moraSpan.textContent = mora;
                     rtContainer.appendChild(moraSpan);
-
                     segment.appendChild(rtContainer);
                     segment.appendChild(kanjiSpan);
                     fragment.appendChild(segment);
@@ -152,24 +139,21 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.audioPlayer.play().catch(e => console.log("Audio replay failed:", e));
     };
 
-    // --- 核心重构 2: 彻底重写高亮函数 ---
     const highlightPitch = (pitch) => {
         const wordData = sessionWords[currentIndex];
         if (pitch === -1 || pitch === undefined) return;
 
-        // 1. 确定哪些音拍是高音
         const highPitchMoraeIndices = new Set();
         for (let i = 1; i <= wordData.moraCount; i++) {
             if (
-                (pitch === 0 && i > 1) ||      // 平板型 (L-H-H...)
-                (pitch === 1 && i === 1) ||    // 头高型 (H-L-L...)
-                (pitch > 1 && i > 1 && i <= pitch) // 中高/尾高型 (L-H..H-L...)
+                (pitch === 0 && i > 1) ||
+                (pitch === 1 && i === 1) ||
+                (pitch > 1 && i > 1 && i <= pitch)
             ) {
                 highPitchMoraeIndices.add(i);
             }
         }
         
-        // 2. 遍历新的HTML结构并应用样式
         let moraCounter = 0;
         dom.wordDisplay.querySelectorAll('.word-segment').forEach(segment => {
             const kanjiSpan = segment.querySelector('.kanji');
@@ -185,12 +169,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 3. 根据音拍高亮情况决定汉字的高亮方式
             if (highCountInSegment > 0) {
                 if (highCountInSegment === moraSpans.length) {
-                    kanjiSpan.classList.add('highlight-strong'); // 全部音拍高亮 -> 汉字强高亮
+                    kanjiSpan.classList.add('highlight-strong');
                 } else {
-                    kanjiSpan.classList.add('highlight-soft');   // 部分音拍高亮 -> 汉字弱高亮
+                    kanjiSpan.classList.add('highlight-soft');
                 }
             }
         });
@@ -260,7 +243,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const wordData = sessionWords[index];
         dom.pitchExplanation.classList.remove('visible');
         
-        // --- 核心重构 3: 调用新的渲染函数 ---
+        // --- 核心修改 1: 移除 .answered 类，重置样式 ---
+        dom.wordDisplay.classList.remove('answered');
         renderWord(wordData.japanese);
 
         dom.wordInfo.style.display = settings.showInfo ? 'block' : 'none';
@@ -311,6 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const showAnswer = (pitchToHighlight = -1) => {
         isAnswered = true;
+        // --- 核心修改 2: 添加 .answered 类，触发新样式 ---
+        dom.wordDisplay.classList.add('answered');
+
         const correctPitches = sessionWords[currentIndex].pitch.split('').map(p => '⓪①②③④⑤⑥⑦⑧⑨⑩'.indexOf(p));
         dom.pitchOptions.querySelectorAll('.pitch-option-btn').forEach(btn => {
             if (correctPitches.includes(parseInt(btn.dataset.pitch, 10))) btn.classList.add('correct');
