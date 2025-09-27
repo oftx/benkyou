@@ -242,39 +242,56 @@ document.addEventListener('DOMContentLoaded', () => {
                     const segment = document.createElement('div'); segment.className = 'word-segment';
                     const kanjiSpan = document.createElement('span'); kanjiSpan.className = 'kanji'; kanjiSpan.textContent = mora;
                     const rtContainer = document.createElement('div'); rtContainer.className = 'rt-container';
-                    const moraSpan = document.createElement('span'); moraSpan.className = 'rt-mora visually-hidden'; moraSpan.textContent = mora; rtContainer.appendChild(moraSpan);
+                    const moraSpan = document.createElement('span'); 
+                    // [修复] 为假名和符号添加 visually-hidden 类，使其默认不可见
+                    moraSpan.className = 'rt-mora visually-hidden';
+                    moraSpan.textContent = mora; 
+                    rtContainer.appendChild(moraSpan);
                     segment.appendChild(rtContainer); segment.appendChild(kanjiSpan); fragment.appendChild(segment);
                 });
             }
         }
         dom.wordDisplay.appendChild(fragment);
     };
+
     const highlightPitch = (pitch) => {
         const wordData = sessionWords[currentIndex];
         if (pitch === -1 || pitch === undefined) return;
+
         const highPitchMoraeIndices = new Set();
         for (let i = 1; i <= wordData.moraCount; i++) {
             if ((pitch === 0 && i > 1) || (pitch === 1 && i === 1) || (pitch > 1 && i > 1 && i <= pitch)) {
                 highPitchMoraeIndices.add(i);
             }
         }
+
+        const KANA_REGEX = /[ぁ-んァ-ヶー]/;
         let moraCounter = 0;
+
         dom.wordDisplay.querySelectorAll('.word-segment').forEach(segment => {
             const kanjiSpan = segment.querySelector('.kanji');
             const moraSpans = segment.querySelectorAll('.rt-mora');
             let highCountInSegment = 0;
+
             moraSpans.forEach(moraSpan => {
-                moraCounter++;
-                if (highPitchMoraeIndices.has(moraCounter)) {
+                const isKana = KANA_REGEX.test(moraSpan.textContent);
+                if (isKana) {
+                    moraCounter++;
+                }
+
+                if (isKana && highPitchMoraeIndices.has(moraCounter)) {
                     moraSpan.classList.add('highlight');
                     highCountInSegment++;
                 }
             });
+
             if (highCountInSegment > 0) {
-                kanjiSpan.classList.add(highCountInSegment === moraSpans.length ? 'highlight-strong' : 'highlight-soft');
+                const kanaInSegment = Array.from(moraSpans).filter(s => KANA_REGEX.test(s.textContent)).length;
+                kanjiSpan.classList.add(highCountInSegment === kanaInSegment ? 'highlight-strong' : 'highlight-soft');
             }
         });
     };
+    
     const loadPitchWord = (index, playOnLoad = true) => {
         if (!sessionWords[index]) return;
         currentIndex = index;
