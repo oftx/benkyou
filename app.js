@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dom.dictationInput.disabled = true;
             dom.dictationInput.classList.remove('incorrect');
             dom.dictationInput.classList.add('correct');
-            showDictationAnswer(true, wordData.japanese.replace(/\[.+?\]/g, ''));
+            showDictationAnswer(true, wordData.japanese);
         } else {
             dom.dictationInput.classList.add('incorrect');
         }
@@ -639,7 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isAnswered = true;
             dom.dictationInput.disabled = true;
             const wordData = sessionWords[currentIndex];
-            showDictationAnswer(false, wordData.japanese.replace(/\[.+?\]/g, ''));
+            showDictationAnswer(false, wordData.japanese);
         });
 
         dom.dictationInput.addEventListener('input', () => {
